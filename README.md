@@ -1,6 +1,6 @@
 FOSSBilling 功能扩展补丁包 , 免费插件请勿转卖 , 二开请署名原作者。
 - **作者**: xkatld
-- **适用版本**: FOSSBilling 0.6.x
+- **适用版本**: FOSSBilling 0.7.x
 
 ## 包含功能
 
