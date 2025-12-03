@@ -1,12 +1,5 @@
-# FOSSBilling-Patch
-
 FOSSBilling 功能扩展补丁包 , 免费插件请勿转卖 , 二开请署名原作者。
-
-## 信息
-
 - **作者**: xkatld
-- **项目地址**: https://github.com/xkatld/FOSSBilling-Patch
-- **版本**: v1.0.0
 - **适用版本**: FOSSBilling 0.6.x
 
 ## 包含功能
@@ -31,17 +24,14 @@ FOSSBilling 功能扩展补丁包 , 免费插件请勿转卖 , 二开请署名�
 **新增文件**:
 - `library/Payment/Adapter/Epay.php`
 
+**修改文件**:
+- `modules/Invoice/html_admin/mod_invoice_gateway.html.twig`
+
 **配置项**:
-- 易支付网关地址
-- 商户ID
-- 商户密钥
-
-## 安装
-
-```bash
-cp -r library/ /your/fossbilling/
-cp -r modules/ /your/fossbilling/
-```
+- 易支付网关地址:
+- 商户ID:
+- 商户密钥:
+- 币种:
 
 ## 配置
 
