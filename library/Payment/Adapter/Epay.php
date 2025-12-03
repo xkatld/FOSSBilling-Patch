@@ -28,16 +28,6 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
     public function __construct($config)
     {
         $this->config = $config;
-
-        if (empty($this->config['apiurl'])) {
-            throw new Payment_Exception('易支付网关地址未配置');
-        }
-        if (empty($this->config['pid'])) {
-            throw new Payment_Exception('易支付商户ID未配置');
-        }
-        if (empty($this->config['key'])) {
-            throw new Payment_Exception('易支付商户密钥未配置');
-        }
     }
 
     public static function getConfig()
@@ -54,21 +44,17 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
             'form' => [
                 'apiurl' => [
                     'text', [
-                        'label' => '易支付网关地址',
-                        'description' => '例如: https://pay.example.com/',
-                        'required' => true,
+                        'label' => '易支付网关地址:',
                     ],
                 ],
                 'pid' => [
                     'text', [
-                        'label' => '商户ID',
-                        'required' => true,
+                        'label' => '商户ID:',
                     ],
                 ],
                 'key' => [
                     'text', [
-                        'label' => '商户密钥',
-                        'required' => true,
+                        'label' => '商户密钥:',
                     ],
                 ],
             ],
@@ -77,6 +63,16 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
 
     public function getHtml($api_admin, $invoice_id, $subscription)
     {
+        if (empty($this->config['apiurl'])) {
+            throw new Payment_Exception('易支付网关地址未配置');
+        }
+        if (empty($this->config['pid'])) {
+            throw new Payment_Exception('易支付商户ID未配置');
+        }
+        if (empty($this->config['key'])) {
+            throw new Payment_Exception('易支付商户密钥未配置');
+        }
+
         $invoiceModel = $this->di['db']->load('Invoice', $invoice_id);
         $invoiceService = $this->di['mod_service']('Invoice');
         $payGatewayService = $this->di['mod_service']('Invoice', 'PayGateway');
