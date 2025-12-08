@@ -181,10 +181,10 @@ class Mail
     private function __sendViaMailflow(array $options): void
     {
         if (empty($options['mailflow_url'])) {
-            throw new InformationException('MailFlow API URL is not configured');
+            throw new InformationException('MailFlow API 地址未配置');
         }
         if (empty($options['mailflow_key'])) {
-            throw new InformationException('MailFlow API Key is not configured');
+            throw new InformationException('MailFlow API 密钥未配置');
         }
 
         $apiUrl = rtrim($options['mailflow_url'], '/') . '/api/v1/send';
@@ -218,14 +218,14 @@ class Mail
         curl_close($ch);
 
         if ($errno) {
-            throw new Exception('Failed to connect to MailFlow server: ' . $error);
+            throw new Exception('连接 MailFlow 服务器失败: ' . $error);
         }
 
         $result = json_decode($response, true);
 
         if ($httpCode >= 400 || (isset($result['code']) && $result['code'] !== 200)) {
             $errorMsg = $result['msg'] ?? $result['error'] ?? $result['message'] ?? 'Unknown error';
-            throw new Exception('MailFlow API error: ' . $errorMsg);
+            throw new Exception('MailFlow API 错误: ' . $errorMsg);
         }
     }
     // ========== MailFlow邮箱API by xkatld 结束 ==========

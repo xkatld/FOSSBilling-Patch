@@ -1,0 +1,166 @@
+{% extends "layout_default.html.twig" %}
+
+{% block meta_title %}LXDAPI 服务器组{% endblock %}
+
+{% set groupData = admin.servicelxdapi_server_group_list({'page': request.page|default(1), 'per_page': 20}) %}
+{% set groups = groupData.list %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fa fa-layer-group me-2"></i>服务器组</h5>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addGroupModal">
+            <i class="fa fa-plus me-1"></i> 添加服务器组
+        </button>
+    </div>
+    <div class="card-body">
+        {% if groups|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>组名称</th>
+                        <th>分配策略</th>
+                        <th>服务器数量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                    <tr>
+                        <td>{{ group.id }}</td>
+                        <td><strong>{{ group.name }}</strong></td>
+                        <td>
+                            {% if group.fill_type == 'least' %}
+                                <span class="badge border border-primary text-primary bg-white">最少优先</span>
+                            {% elseif group.fill_type == 'round' %}
+                                <span class="badge border border-info text-info bg-white">轮询分配</span>
+                            {% else %}
+                                <span class="badge border border-secondary text-secondary bg-white">随机分配</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ group.server_count }} 台</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                    onclick="editGroup({{ group.id }}, '{{ group.name }}', '{{ group.fill_type }}')">
+                                <i class="fa fa-edit me-1"></i>编辑
+                            </button>
+                            <a class="btn btn-sm btn-outline-danger api-link" 
+                               href="{{ 'api/admin/servicelxdapi/server_group_delete'|link({'id': group.id, 'CSRFToken': CSRFToken}) }}" 
+                               data-api-confirm="确定要删除此服务器组吗？组内服务器将变为无组状态。"
+                               data-api-reload="1">
+                                <i class="fa fa-trash me-1"></i>删除
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted small">共 {{ groupData.total }} 条记录，第 {{ groupData.page }}/{{ groupData.pages > 0 ? groupData.pages : 1 }} 页</div>
+            <nav>
+                <ul class="pagination mb-0">
+                    <li class="page-item{% if groupData.page <= 1 %} disabled{% endif %}">
+                        <a class="page-link" href="?page=1">首页</a>
+                    </li>
+                    <li class="page-item{% if groupData.page <= 1 %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ groupData.page - 1 }}">上一页</a>
+                    </li>
+                    {% for i in 1..groupData.pages %}
+                        <li class="page-item{% if i == groupData.page %} active{% endif %}">
+                            <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item{% if groupData.page >= groupData.pages %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ groupData.page + 1 }}">下一页</a>
+                    </li>
+                    <li class="page-item{% if groupData.page >= groupData.pages %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ groupData.pages }}">末页</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="fa fa-info-circle me-2"></i>暂无服务器组。服务器组可用于产品自动分配服务器，支持负载均衡。
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="addGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ 'api/admin/servicelxdapi/server_group_create'|link }}" class="api-form" data-api-reload="1">
+                <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa fa-plus me-2"></i>添加服务器组</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">组名称 <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="例如：香港区域">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分配策略</label>
+                        <select name="fill_type" class="form-select">
+                            <option value="least">最少优先 - 优先分配到容器最少的服务器</option>
+                            <option value="round">轮询分配 - 依次轮流分配</option>
+                            <option value="random">随机分配 - 随机选择服务器</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ 'api/admin/servicelxdapi/server_group_update'|link }}" class="api-form" data-api-reload="1">
+                <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                <input type="hidden" name="id" id="editGroupId">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa fa-edit me-2"></i>编辑服务器组</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">组名称 <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="editGroupName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">分配策略</label>
+                        <select name="fill_type" id="editGroupFillType" class="form-select">
+                            <option value="least">最少优先 - 优先分配到容器最少的服务器</option>
+                            <option value="round">轮询分配 - 依次轮流分配</option>
+                            <option value="random">随机分配 - 随机选择服务器</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editGroup(id, name, fillType) {
+    document.getElementById('editGroupId').value = id;
+    document.getElementById('editGroupName').value = name;
+    document.getElementById('editGroupFillType').value = fillType;
+    new bootstrap.Modal(document.getElementById('editGroupModal')).show();
+}
+</script>
+{% endblock %}

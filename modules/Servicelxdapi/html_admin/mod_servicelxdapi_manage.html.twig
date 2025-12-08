@@ -1,0 +1,205 @@
+{% extends "layout_default.html.twig" %}
+
+{% block meta_title %}容器管理{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fa fa-server me-2"></i>容器：{{ service.container_name }}</h5>
+    </div>
+    <div class="card-body">
+        {% set vm = admin.servicelxdapi_vm_info({"order_id": order.id}) %}
+        
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>订单 ID：</strong></td>
+                        <td>{{ order.id }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>容器名称：</strong></td>
+                        <td>{{ vm.container_name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>服务器：</strong></td>
+                        <td>{{ vm.server }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>状态：</strong></td>
+                        <td>
+                            {% if vm.status == 'Running' or vm.status == 'running' %}
+                                <span class="badge bg-success">运行中</span>
+                            {% elseif vm.status == 'Stopped' or vm.status == 'stopped' %}
+                                <span class="badge bg-danger">已停止</span>
+                            {% elseif vm.status == 'Frozen' or vm.status == 'frozen' %}
+                                <span class="badge bg-warning">已暂停</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ vm.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>密码：</strong></td>
+                        <td><code>{{ vm.password }}</code></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                {% if vm.info %}
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>CPU 使用率：</strong></td>
+                        <td>{{ vm.info.cpu_usage|default(0)|round(1) }}%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>内存使用：</strong></td>
+                        <td>{{ vm.info.memory_usage|default('N/A') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>磁盘使用：</strong></td>
+                        <td>{{ vm.info.disk_usage|default('N/A') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>流量使用：</strong></td>
+                        <td>{{ vm.info.traffic_usage|default('N/A') }}</td>
+                    </tr>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fa fa-cogs me-2"></i>容器控制</h5>
+    </div>
+    <div class="card-body">
+        <div class="btn-group me-3" role="group">
+            <a class="btn btn-success api-link" 
+               href="{{ 'api/admin/servicelxdapi/vm_start'|link({'order_id': order.id, 'CSRFToken': CSRFToken}) }}" 
+               data-api-confirm="确定要启动容器吗？"
+               data-api-reload="1">
+                <i class="fa fa-play me-1"></i> 开机
+            </a>
+            <a class="btn btn-danger api-link" 
+               href="{{ 'api/admin/servicelxdapi/vm_stop'|link({'order_id': order.id, 'CSRFToken': CSRFToken}) }}" 
+               data-api-confirm="确定要关闭容器吗？"
+               data-api-reload="1">
+                <i class="fa fa-stop me-1"></i> 关机
+            </a>
+            <a class="btn btn-warning api-link" 
+               href="{{ 'api/admin/servicelxdapi/vm_reboot'|link({'order_id': order.id, 'CSRFToken': CSRFToken}) }}" 
+               data-api-confirm="确定要重启容器吗？"
+               data-api-reload="1">
+                <i class="fa fa-refresh me-1"></i> 重启
+            </a>
+        </div>
+
+        <a class="btn btn-info api-link" 
+           href="{{ 'api/admin/servicelxdapi/traffic_reset'|link({'order_id': order.id, 'CSRFToken': CSRFToken}) }}" 
+           data-api-confirm="确定要重置流量统计吗？">
+            <i class="fa fa-bar-chart me-1"></i> 重置流量
+        </a>
+
+        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#consoleModal">
+            <i class="fa fa-terminal me-1"></i> 控制台
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fa fa-refresh me-2"></i>重装系统</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ 'api/admin/servicelxdapi/vm_reinstall'|link }}" class="api-form" data-api-confirm="重装系统将清除所有数据，确定继续吗？" data-api-reload="1">
+                    <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">选择镜像</label>
+                        <select name="image" class="form-select" required>
+                            <option value="">请选择镜像</option>
+                            <option value="debian12">Debian 12</option>
+                            <option value="debian11">Debian 11</option>
+                            <option value="ubuntu2404">Ubuntu 24.04</option>
+                            <option value="ubuntu2204">Ubuntu 22.04</option>
+                            <option value="alpine320">Alpine 3.20</option>
+                            <option value="centos9">CentOS 9 Stream</option>
+                            <option value="rockylinux9">Rocky Linux 9</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新密码（可选）</label>
+                        <input type="password" name="password" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-refresh me-1"></i> 重装系统
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fa fa-key me-2"></i>重置密码</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ 'api/admin/servicelxdapi/vm_reset_password'|link }}" class="api-form" data-api-reload="1">
+                    <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">新密码</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-key me-1"></i> 重置密码
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="consoleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">容器控制台</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="consoleFrame" style="width:100%; height:500px; border:none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <a id="consoleNewWindow" href="#" target="_blank" class="btn btn-primary">
+                    <i class="fa fa-external-link me-1"></i> 新窗口打开
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('consoleModal').addEventListener('show.bs.modal', function () {
+    fetch('{{ "api/admin/servicelxdapi/console_url"|link({"order_id": order.id, "CSRFToken": CSRFToken}) }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.result) {
+                document.getElementById('consoleFrame').src = data.result;
+                document.getElementById('consoleNewWindow').href = data.result;
+            }
+        });
+});
+
+document.getElementById('consoleModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('consoleFrame').src = '';
+});
+</script>
+{% endblock %}

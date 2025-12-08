@@ -1,0 +1,285 @@
+{% extends "layout_default.html.twig" %}
+
+{% block meta_title %}LXDAPI 服务器{% endblock %}
+
+{% set groupData = admin.servicelxdapi_server_group_list({'per_page': 100}) %}
+{% set groups = groupData.list %}
+{% set serverData = admin.servicelxdapi_server_list({'page': request.page|default(1), 'per_page': 20}) %}
+{% set servers = serverData.list %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fa fa-server me-2"></i>服务器</h5>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addServerModal">
+            <i class="fa fa-plus me-1"></i> 添加服务器
+        </button>
+    </div>
+    <div class="card-body">
+        {% if servers|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>所属组</th>
+                        <th>主机地址</th>
+                        <th>端口</th>
+                        <th>服务数量</th>
+                        <th>SSL</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for server in servers %}
+                    <tr>
+                        <td>{{ server.id }}</td>
+                        <td><strong>{{ server.name }}</strong></td>
+                        <td>
+                            {% if server.group_name %}
+                                <span class="badge border border-info text-info bg-white">{{ server.group_name }}</span>
+                            {% else %}
+                                <span class="text-muted">无</span>
+                            {% endif %}
+                        </td>
+                        <td><code>{{ server.hostname }}</code></td>
+                        <td>{{ server.port }}</td>
+                        <td>
+                            <span class="{% if server.max_containers > 0 and server.container_count >= server.max_containers %}text-danger{% endif %}">
+                                {{ server.container_count }}{% if server.max_containers > 0 %} / {{ server.max_containers }}{% else %} / 不限{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if server.ssl_verify %}
+                                <span class="badge border border-success text-success bg-white">启用</span>
+                            {% else %}
+                                <span class="badge border border-secondary text-secondary bg-white">关闭</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if server.active %}
+                                <span class="badge border border-success text-success bg-white">启用</span>
+                            {% else %}
+                                <span class="badge border border-danger text-danger bg-white">禁用</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="testServer({{ server.id }})">
+                                <i class="fa fa-plug me-1"></i>测试
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                    onclick="editServer({{ server.id }}, '{{ server.name }}', '{{ server.hostname }}', {{ server.port }}, {{ server.ssl_verify ? 1 : 0 }}, {{ server.active ? 1 : 0 }}, {{ server.group_id ?? 'null' }}, {{ server.max_containers ?? 0 }})">
+                                <i class="fa fa-edit me-1"></i>编辑
+                            </button>
+                            <a class="btn btn-sm btn-outline-danger api-link" 
+                               href="{{ 'api/admin/servicelxdapi/server_delete'|link({'id': server.id, 'CSRFToken': CSRFToken}) }}" 
+                               data-api-confirm="确定要删除此服务器吗？"
+                               data-api-reload="1">
+                                <i class="fa fa-trash me-1"></i>删除
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="text-muted small">共 {{ serverData.total }} 条记录，第 {{ serverData.page }}/{{ serverData.pages > 0 ? serverData.pages : 1 }} 页</div>
+            <nav>
+                <ul class="pagination mb-0">
+                    <li class="page-item{% if serverData.page <= 1 %} disabled{% endif %}">
+                        <a class="page-link" href="?page=1">首页</a>
+                    </li>
+                    <li class="page-item{% if serverData.page <= 1 %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ serverData.page - 1 }}">上一页</a>
+                    </li>
+                    {% for i in 1..serverData.pages %}
+                        <li class="page-item{% if i == serverData.page %} active{% endif %}">
+                            <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                        </li>
+                    {% endfor %}
+                    <li class="page-item{% if serverData.page >= serverData.pages %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ serverData.page + 1 }}">下一页</a>
+                    </li>
+                    <li class="page-item{% if serverData.page >= serverData.pages %} disabled{% endif %}">
+                        <a class="page-link" href="?page={{ serverData.pages }}">末页</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="fa fa-info-circle me-2"></i>暂无服务器配置，请点击右上角添加服务器。
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="addServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ 'api/admin/servicelxdapi/server_create'|link }}" class="api-form" data-api-reload="1">
+                <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa fa-plus me-2"></i>添加服务器</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">名称 <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required placeholder="我的服务器">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">所属服务器组</label>
+                            <select name="group_id" class="form-select">
+                                <option value="">-- 不加入组 --</option>
+                                {% for group in groups %}
+                                    <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">主机地址 / IP <span class="text-danger">*</span></label>
+                            <input type="text" name="hostname" class="form-control" required placeholder="lxd.example.com">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">端口 <span class="text-danger">*</span></label>
+                            <input type="number" name="port" class="form-control" value="8443" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">服务限制</label>
+                            <input type="number" name="max_containers" class="form-control" value="0" min="0" title="0 表示不限制">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API 密钥 <span class="text-danger">*</span></label>
+                        <input type="text" name="api_hash" class="form-control" required placeholder="API Hash">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="ssl_verify" value="0">
+                                <input type="checkbox" name="ssl_verify" value="1" class="form-check-input" id="sslCheck">
+                                <label class="form-check-label" for="sslCheck">SSL 证书验证</label>
+                                <div class="text-muted small">自签名证书请关闭</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="active" value="0">
+                                <input type="checkbox" name="active" value="1" class="form-check-input" id="activeCheck" checked>
+                                <label class="form-check-label" for="activeCheck">启用服务器</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ 'api/admin/servicelxdapi/server_update'|link }}" class="api-form" data-api-reload="1">
+                <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}">
+                <input type="hidden" name="id" id="editServerId">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa fa-edit me-2"></i>编辑服务器</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">名称 <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="editServerName" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">所属服务器组</label>
+                            <select name="group_id" id="editServerGroupId" class="form-select">
+                                <option value="">-- 不加入组 --</option>
+                                {% for group in groups %}
+                                    <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">主机地址 / IP <span class="text-danger">*</span></label>
+                            <input type="text" name="hostname" id="editServerHostname" class="form-control" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">端口 <span class="text-danger">*</span></label>
+                            <input type="number" name="port" id="editServerPort" class="form-control" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">服务限制</label>
+                            <input type="number" name="max_containers" id="editServerMaxContainers" class="form-control" min="0" title="0 表示不限制">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API 密钥</label>
+                        <input type="text" name="api_hash" class="form-control" placeholder="留空保持不变">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="ssl_verify" value="0">
+                                <input type="checkbox" name="ssl_verify" value="1" class="form-check-input" id="editSslCheck">
+                                <label class="form-check-label" for="editSslCheck">SSL 证书验证</label>
+                                <div class="text-muted small">自签名证书请关闭</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="active" value="0">
+                                <input type="checkbox" name="active" value="1" class="form-check-input" id="editActiveCheck">
+                                <label class="form-check-label" for="editActiveCheck">启用服务器</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function testServer(id) {
+    API.admin.get('servicelxdapi/server_test', {id: id}, 
+        function(result) {
+            FOSSBilling.message(result, 'success');
+        },
+        function(error) {
+            FOSSBilling.message(error.message, 'error');
+        }
+    );
+}
+
+function editServer(id, name, hostname, port, sslVerify, active, groupId, maxContainers) {
+    document.getElementById('editServerId').value = id;
+    document.getElementById('editServerName').value = name;
+    document.getElementById('editServerHostname').value = hostname;
+    document.getElementById('editServerPort').value = port;
+    document.getElementById('editSslCheck').checked = sslVerify === 1;
+    document.getElementById('editActiveCheck').checked = active === 1;
+    document.getElementById('editServerGroupId').value = groupId || '';
+    document.getElementById('editServerMaxContainers').value = maxContainers || 0;
+    new bootstrap.Modal(document.getElementById('editServerModal')).show();
+}
+</script>
+{% endblock %}

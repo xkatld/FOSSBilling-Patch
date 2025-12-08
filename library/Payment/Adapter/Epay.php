@@ -81,17 +81,18 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
         $invoiceTotal = $invoiceService->getTotalWithTax($invoiceModel);
         $callbackUrl = $payGatewayService->getCallbackUrl($payGateway, $invoiceModel);
 
-        $out_trade_no = $invoiceModel->id . '_' . time();
+        $shortHash = substr(md5($invoiceModel->hash), 0, 8);
+        $out_trade_no = $invoiceModel->id . '_' . $shortHash . '_' . time();
         $name = '订单 #' . $invoiceModel->serie . sprintf('%05s', $invoiceModel->nr);
         $money = number_format($invoiceTotal, 2, '.', '');
 
-        $apiurl = rtrim($this->config['apiurl'], '/') . '/';
+        $apiurl = rtrim($this->config['apiurl'], '/');
 
         $param = [
-            'pid' => $this->config['pid'],
+            'pid' => strval($this->config['pid']),
             'type' => 'alipay',
             'notify_url' => $callbackUrl,
-            'return_url' => $callbackUrl . '&return=1',
+            'return_url' => $callbackUrl . '&redirect=1&invoice_hash=' . $invoiceModel->hash,
             'out_trade_no' => $out_trade_no,
             'name' => $name,
             'money' => $money,
@@ -100,15 +101,14 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
         $param['sign'] = $this->buildSign($param);
         $param['sign_type'] = 'MD5';
 
-        $submitUrl = $apiurl . 'submit.php';
+        $submitUrl = $apiurl . '/submit.php';
 
-        $html = '<form id="epay_form" action="' . $submitUrl . '" method="post">';
+        $html = '<form id="dopay" action="' . $submitUrl . '" method="post">';
         foreach ($param as $k => $v) {
-            $html .= '<input type="hidden" name="' . $k . '" value="' . htmlspecialchars($v) . '"/>';
+            $html .= '<input type="hidden" name="' . $k . '" value="' . $v . '"/>';
         }
-        $html .= '<button type="submit" class="btn btn-primary">正在跳转到支付页面...</button>';
-        $html .= '</form>';
-        $html .= '<script>document.getElementById("epay_form").submit();</script>';
+        $html .= '<input type="submit" class="btn btn-primary" value="正在跳转到支付页面..."></form>';
+        $html .= '<script>document.getElementById("dopay").submit();</script>';
 
         return $html;
     }
@@ -117,20 +117,44 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
     {
         $out_trade_no = $data['get']['out_trade_no'] ?? '';
         if (empty($out_trade_no)) {
-            return null;
+            return $data['get']['invoice_id'] ?? null;
         }
+        
         $parts = explode('_', $out_trade_no);
-        return (int) $parts[0];
+        if (count($parts) >= 2 && is_numeric($parts[0])) {
+            return (int) $parts[0];
+        }
+        return $data['get']['invoice_id'] ?? null;
     }
 
     public function processTransaction($api_admin, $id, $data, $gateway_id)
     {
-        $tx = $this->di['db']->getExistingModelById('Transaction', $id);
-        $invoice = $this->di['db']->getExistingModelById('Invoice', $tx->invoice_id);
+        $tx = $this->di['db']->load('Transaction', $id);
+        if (!$tx) {
+            throw new Payment_Exception('交易记录不存在: ' . $id);
+        }
+
+        if (empty($tx->invoice_id)) {
+            $tx->invoice_id = $this->getInvoiceId($data);
+            $this->di['db']->store($tx);
+        }
+
+        $invoice = $this->di['db']->load('Invoice', $tx->invoice_id);
+        if (!$invoice) {
+            throw new Payment_Exception('账单不存在: ' . $tx->invoice_id);
+        }
 
         $get = $data['get'];
 
-        if (!$this->verifySign($get)) {
+        $epayParams = [];
+        $epayKeys = ['pid', 'trade_no', 'out_trade_no', 'type', 'name', 'money', 'trade_status', 'sign', 'sign_type'];
+        foreach ($epayKeys as $key) {
+            if (isset($get[$key])) {
+                $epayParams[$key] = $get[$key];
+            }
+        }
+
+        if (!$this->verifySign($epayParams)) {
             throw new Payment_Exception('易支付签名验证失败');
         }
 
@@ -149,7 +173,10 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
                 $clientService = $this->di['mod_service']('client');
                 $invoiceService = $this->di['mod_service']('Invoice');
 
-                $client = $this->di['db']->getExistingModelById('Client', $invoice->client_id);
+                $client = $this->di['db']->load('Client', $invoice->client_id);
+                if (!$client) {
+                    throw new Payment_Exception('客户不存在: ' . $invoice->client_id);
+                }
 
                 $bd = [
                     'amount' => $money,
@@ -168,15 +195,21 @@ class Payment_Adapter_Epay implements FOSSBilling\InjectionAwareInterface
 
         $this->di['db']->store($tx);
 
-        if (!isset($get['return'])) {
-            echo 'success';
+        $hasRedirect = isset($get['redirect']) || isset($get['amp;redirect']);
+        if ($hasRedirect) {
+            $url = $this->di['url']->link('invoice/' . $invoice->hash);
+            echo '<html><head><meta http-equiv="refresh" content="0;url=' . $url . '"><script>window.location.href="' . $url . '";</script></head><body>正在跳转...</body></html>';
             exit;
         }
+        
+        echo 'success';
+        exit;
     }
 
     private function buildSign($param)
     {
         ksort($param);
+        reset($param);
         $signstr = '';
         foreach ($param as $k => $v) {
             if ($k != 'sign' && $k != 'sign_type' && $v != '') {

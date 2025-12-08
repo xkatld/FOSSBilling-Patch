@@ -1,0 +1,60 @@
+{# ========== 汉化邮箱插件 by xkatld 开始 ========== #}
+{# @link https://github.com/xkatld/FOSSBilling-Patch #}
+{# @version v1.0.0 #}
+
+{% block subject %}[{{ guest.system_company.name }}] 客服为您创建了工单{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; background-color: #f4f6f9; }
+        .email-wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+        .email-header { background: linear-gradient(135deg, #206bc4 0%, #4299e1 100%); padding: 30px 40px; text-align: center; }
+        .email-header h1 { color: #ffffff; font-size: 24px; font-weight: 600; margin: 0; }
+        .email-header .subtitle { color: rgba(255,255,255,0.9); font-size: 14px; margin-top: 5px; }
+        .email-body { padding: 40px; background-color: #ffffff; }
+        .email-body h2 { color: #206bc4; font-size: 20px; font-weight: 600; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        .email-body p { margin-bottom: 15px; color: #495057; }
+        .email-body .highlight { background-color: #e7f3ff; border-left: 4px solid #206bc4; padding: 15px 20px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .email-body .message-box { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 20px; margin: 20px 0; }
+        .btn { display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #206bc4 0%, #4299e1 100%); color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 10px 5px 10px 0; }
+        .email-footer { background-color: #f8f9fa; padding: 30px 40px; text-align: center; border-top: 1px solid #e9ecef; }
+        .email-footer .signature { color: #6c757d; font-size: 13px; line-height: 1.8; }
+        .email-footer .company-info { margin-top: 15px; padding-top: 15px; border-top: 1px solid #e9ecef; color: #adb5bd; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-header">
+            <h1>{{ guest.system_company.name }}</h1>
+            <div class="subtitle">客服为您创建了工单</div>
+        </div>
+        <div class="email-body">
+            <h2>{{ ticket.subject }}</h2>
+            <p>您好 {{ ticket.author_name }}，</p>
+            
+            <div class="highlight">
+                <p>客服为您创建了一个工单。</p>
+            </div>
+
+            <p><strong>工单内容：</strong></p>
+            <div class="message-box">{{ ticket.messages[0].content|nl2br }}</div>
+            
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="{{ 'support/public-ticket'|link }}/{{ ticket.hash }}" class="btn">查看工单</a>
+            </p>
+        </div>
+        <div class="email-footer">
+            <div class="signature">{{ guest.system_company.signature }}</div>
+            <div class="company-info">此邮件由 {{ guest.system_company.name }} 系统自动发送</div>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %}
+
+{# ========== 汉化邮箱插件 by xkatld 结束 ========== #}

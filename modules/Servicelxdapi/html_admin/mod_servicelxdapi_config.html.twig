@@ -1,0 +1,140 @@
+{% import 'macro_functions.html.twig' as mf %}
+
+<div class="card-body">
+    <form method="post" action="{{ 'api/admin/product/update_config'|link }}" class="api-form save" data-api-msg="配置已更新">
+        <input type="hidden" name="CSRFToken" value="{{ CSRFToken }}"/>
+
+        <h5 class="mb-3">基础配置</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">服务器组 <small class="text-muted">(自动分配)</small></label>
+                <select name="config[server_group_id]" class="form-select" id="serverGroupSelect">
+                    <option value="">-- 不使用服务器组 --</option>
+                    {% set groupData = admin.servicelxdapi_server_group_list({'per_page': 100}) %}
+                    {% for group in groupData.list %}
+                        <option value="{{ group.id }}" {% if product.config.server_group_id == group.id %}selected{% endif %}>{{ group.name }} ({{ group.server_count }}台服务器)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">指定服务器 <small class="text-muted">(优先级低于服务器组)</small></label>
+                <select name="config[server_id]" class="form-select" id="serverSelect">
+                    <option value="">-- 选择服务器 --</option>
+                    {% set serverData = admin.servicelxdapi_server_list({'per_page': 100}) %}
+                    {% for server in serverData.list %}
+                        <option value="{{ server.id }}" {% if product.config.server_id == server.id %}selected{% endif %}>{{ server.name }} ({{ server.hostname }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">系统镜像</label>
+                <input type="text" name="config[image]" class="form-control" value="{{ product.config.image|default('debian12') }}" placeholder="debian12">
+            </div>
+        </div>
+        <div class="alert alert-info py-2 mb-3">
+            <i class="fa fa-info-circle me-1"></i>
+            <strong>服务器选择说明：</strong>选择服务器组后将自动按策略分配服务器；若不使用服务器组，则使用指定的服务器。
+        </div>
+
+        <h5 class="mb-3">资源配置</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">CPU核心数</label>
+                <input type="number" name="config[cpus]" class="form-control" value="{{ product.config.cpus|default(1) }}" min="1">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">内存 MB</label>
+                <input type="number" name="config[memory]" class="form-control" value="{{ product.config.memory|default(512) }}" min="128">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">硬盘 MB</label>
+                <input type="number" name="config[disk]" class="form-control" value="{{ product.config.disk|default(10240) }}" min="1024">
+            </div>
+        </div>
+
+        <h5 class="mb-3">网络配置</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">入站带宽 Mbit</label>
+                <input type="number" name="config[ingress]" class="form-control" value="{{ product.config.ingress|default(100) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">出站带宽 Mbit</label>
+                <input type="number" name="config[egress]" class="form-control" value="{{ product.config.egress|default(100) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">月流量限制 GB</label>
+                <input type="number" name="config[traffic_limit]" class="form-control" value="{{ product.config.traffic_limit|default(100) }}" min="0">
+            </div>
+        </div>
+
+        <h5 class="mb-3">规则配额</h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">IPv4地址池</label>
+                <input type="number" name="config[ipv4_pool_limit]" class="form-control" value="{{ product.config.ipv4_pool_limit|default(0) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">IPv6地址池</label>
+                <input type="number" name="config[ipv6_pool_limit]" class="form-control" value="{{ product.config.ipv6_pool_limit|default(0) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">IPv4端口映射</label>
+                <input type="number" name="config[ipv4_mapping_limit]" class="form-control" value="{{ product.config.ipv4_mapping_limit|default(5) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">IPv6端口映射</label>
+                <input type="number" name="config[ipv6_mapping_limit]" class="form-control" value="{{ product.config.ipv6_mapping_limit|default(0) }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">反向代理</label>
+                <input type="number" name="config[reverse_proxy_limit]" class="form-control" value="{{ product.config.reverse_proxy_limit|default(0) }}" min="0">
+            </div>
+        </div>
+
+        <h5 class="mb-3">进阶配置</h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <label class="form-label">CPU限制 %</label>
+                <input type="number" name="config[cpu_allowance]" class="form-control" value="{{ product.config.cpu_allowance|default(100) }}" min="1" max="100">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">I/O读取 MB</label>
+                <input type="number" name="config[io_read]" class="form-control" value="{{ product.config.io_read|default(100) }}" min="1">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">I/O写入 MB</label>
+                <input type="number" name="config[io_write]" class="form-control" value="{{ product.config.io_write|default(50) }}" min="1">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label">最大进程数</label>
+                <input type="number" name="config[processes_limit]" class="form-control" value="{{ product.config.processes_limit|default(512) }}" min="64">
+            </div>
+        </div>
+
+        <h5 class="mb-3">高级选项</h5>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-check">
+                    <input type="checkbox" name="config[allow_nesting]" value="true" class="form-check-input" {% if product.config.allow_nesting|default('true') == 'true' %}checked{% endif %}>
+                    <span class="form-check-label">启用嵌套虚拟化</span>
+                </label>
+            </div>
+            <div class="col-md-4">
+                <label class="form-check">
+                    <input type="checkbox" name="config[memory_swap]" value="true" class="form-check-input" {% if product.config.memory_swap|default('true') == 'true' %}checked{% endif %}>
+                    <span class="form-check-label">启用Swap虚拟内存</span>
+                </label>
+            </div>
+            <div class="col-md-4">
+                <label class="form-check">
+                    <input type="checkbox" name="config[privileged]" value="true" class="form-check-input" {% if product.config.privileged == 'true' %}checked{% endif %}>
+                    <span class="form-check-label">特权模式容器</span>
+                </label>
+            </div>
+        </div>
+
+        <input type="hidden" name="id" value="{{ product.id }}">
+        <button class="btn btn-primary w-100" type="submit">保存配置</button>
+    </form>
+</div>
